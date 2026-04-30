@@ -1,0 +1,330 @@
+{
+  "info": {
+    "_postman_id": "lineab-api-collection",
+    "name": "Línea B - GeoAPI",
+    "description": "API REST para gestión de capas georeferenciadas con PostgreSQL y PostGIS",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "📊 Salud de la API",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["health"]
+        },
+        "description": "Verifica que la API está funcionando"
+      }
+    },
+    {
+      "name": "🔌 Versión de PostGIS",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/postgis-version",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["postgis-version"]
+        }
+      }
+    },
+    {
+      "name": "🆙 CAPAS - Subir nueva capa",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "nombre",
+              "value": "Mi Primera Capa",
+              "type": "text"
+            },
+            {
+              "key": "descripcion",
+              "value": "Capa de ejemplo del sistema Línea B",
+              "type": "text"
+            },
+            {
+              "key": "archivo",
+              "type": "file",
+              "src": "ejemplo.geojson",
+              "description": "Selecciona tu archivo GeoJSON"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/capas",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "capas"]
+        },
+        "description": "Subir una nueva capa georeferenciada"
+      }
+    },
+    {
+      "name": "📋 CAPAS - Listar todas",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/capas",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "capas"]
+        },
+        "description": "Obtener lista de todas las capas"
+      }
+    },
+    {
+      "name": "📊 CAPAS - Obtener capa específica",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/capas/1",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "capas", "1"]
+        },
+        "description": "Obtener detalles de una capa específica (cambiar ID según sea necesario)"
+      }
+    },
+    {
+      "name": "🗺️ CAPAS - Obtener GeoJSON",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/capas/1/geojson",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "capas", "1", "geojson"]
+        },
+        "description": "Obtener capa en formato GeoJSON (para visualizar en mapa)"
+      }
+    },
+    {
+      "name": "📏 CAPAS - Obtener Bounding Box",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/capas/1/bbox",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "capas", "1", "bbox"]
+        },
+        "description": "Obtener bounding box y área de una capa"
+      }
+    },
+    {
+      "name": "✏️ CAPAS - Actualizar capa",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Nombre Actualizado\",\n  \"descripcion\": \"Nueva descripción de la capa\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/capas/1",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "capas", "1"]
+        }
+      }
+    },
+    {
+      "name": "🗑️ CAPAS - Eliminar capa",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/capas/1",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "capas", "1"]
+        },
+        "description": "Eliminar una capa (cambiar ID según sea necesario)"
+      }
+    },
+    {
+      "name": "✔️ CAPAS - Validar archivo",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "archivo",
+              "type": "file",
+              "src": "ejemplo.geojson",
+              "description": "Selecciona el archivo a validar"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/capas/validar",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "capas", "validar"]
+        },
+        "description": "Validar archivo sin guardarlo"
+      }
+    },
+    {
+      "name": "➕ CAPAS - Agregar feature",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"feature\": {\n    \"type\": \"Feature\",\n    \"properties\": {\n      \"nombre\": \"Nuevo Feature\",\n      \"tipo\": \"punto_de_interes\"\n    },\n    \"geometry\": {\n      \"type\": \"Point\",\n      \"coordinates\": [-74.0760, 4.6596]\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/capas/1/features",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "capas", "1", "features"]
+        },
+        "description": "Agregar un feature a una capa existente"
+      }
+    },
+    {
+      "name": "📍 ESTACIONES - Listar todas",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/estaciones",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "estaciones"]
+        }
+      }
+    },
+    {
+      "name": "📍 ESTACIONES - Crear nueva",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Nueva Estación\",\n  \"lat\": 4.7210,\n  \"lon\": -74.0280\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/estaciones",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "estaciones"]
+        }
+      }
+    },
+    {
+      "name": "🎯 ESTACIONES - Obtener cercanas",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/estaciones/cercanas?lat=4.7210&lon=-74.0280&radio=2000",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "estaciones", "cercanas"],
+          "query": [
+            {
+              "key": "lat",
+              "value": "4.7210"
+            },
+            {
+              "key": "lon",
+              "value": "-74.0280"
+            },
+            {
+              "key": "radio",
+              "value": "2000",
+              "description": "Radio en metros"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "📏 ESTACIONES - Obtener cobertura",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/estaciones/cobertura",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "estaciones", "cobertura"]
+        }
+      }
+    },
+    {
+      "name": "✏️ ESTACIONES - Actualizar",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Estación Actualizada\",\n  \"lat\": 4.7250,\n  \"lon\": -74.0300\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/estaciones/1",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "estaciones", "1"]
+        }
+      }
+    },
+    {
+      "name": "🗑️ ESTACIONES - Eliminar",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/estaciones/1",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "estaciones", "1"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}

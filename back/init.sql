@@ -1,102 +1,110 @@
--- ============================================
--- Script de Inicialización - Línea B con PostGIS
--- ============================================
+-- ========================================
+-- INICIALIZACIÓN - API REST CON PROYECTO
+-- ========================================
+-- Este script prepara la base de datos "proyecto" para la API de capas georeferenciadas
+-- Las tablas principales (departamentos, municipios, vias, sitios_turisticos) 
+-- ya existen con datos reales
 
 -- Verificar que PostGIS está instalado
-SELECT PostGIS_version();
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS postgis_topology;
 
--- Crear tabla de estaciones
-CREATE TABLE IF NOT EXISTS estaciones (
+-- ========================================
+-- TABLA: CAPAS GEOREFERENCIADAS
+-- ========================================
+-- Para subir y gestionar nuevas capas geoespaciales
+
+CREATE TABLE IF NOT EXISTS capas_georeferenciadas (
     id SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL UNIQUE,
+    nombre VARCHAR(255) NOT NULL UNIQUE,
     descripcion TEXT,
-    geom GEOMETRY(Point, 4326) NOT NULL,
+    tipo_archivo VARCHAR(50) NOT NULL, -- 'geojson', 'shapefile', 'geotiff', etc
+    geometria_json JSONB NOT NULL,     -- Almacenar el GeoJSON completo
+    bbox GEOMETRY(Polygon, 4326) NOT NULL, -- Bounding box de la capa
+    archivo_original VARCHAR(255),     -- Nombre del archivo subido
+    usuario_id INTEGER,                -- Para futuro: control de acceso
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Crear índice espacial para mejor rendimiento en consultas
-CREATE INDEX IF NOT EXISTS idx_estaciones_geom ON estaciones USING GIST(geom);
+-- Índices para capas
+CREATE INDEX IF NOT EXISTS idx_capas_bbox ON capas_georeferenciadas USING GIST(bbox);
+CREATE INDEX IF NOT EXISTS idx_capas_nombre ON capas_georeferenciadas(nombre);
+CREATE INDEX IF NOT EXISTS idx_capas_tipo ON capas_georeferenciadas(tipo_archivo);
+CREATE INDEX IF NOT EXISTS idx_capas_created ON capas_georeferenciadas(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_capas_json ON capas_georeferenciadas USING GIN(geometria_json);
 
--- Crear tabla de rutas/líneas
-CREATE TABLE IF NOT EXISTS rutas (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    descripcion TEXT,
-    ruta_geom GEOMETRY(LineString, 4326) NOT NULL,
-    distancia_km NUMERIC(10, 3),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- ========================================
+-- FUNCIONES UTILITARIAS
+-- ========================================
 
--- Crear índice espacial para rutas
-CREATE INDEX IF NOT EXISTS idx_rutas_geom ON rutas USING GIST(ruta_geom);
+-- Calcular área en km² de una capa
+CREATE OR REPLACE FUNCTION area_capa_km2(capa_id INTEGER)
+RETURNS NUMERIC AS $$
+BEGIN
+    RETURN (
+        SELECT ST_Area(bbox::geography) / 1000000 
+        FROM capas_georeferenciadas 
+        WHERE id = capa_id
+    );
+END;
+$$ LANGUAGE plpgsql;
 
--- Crear tabla de paradas
-CREATE TABLE IF NOT EXISTS paradas (
-    id SERIAL PRIMARY KEY,
-    estacion_id INTEGER NOT NULL REFERENCES estaciones(id) ON DELETE CASCADE,
-    ruta_id INTEGER NOT NULL REFERENCES rutas(id) ON DELETE CASCADE,
-    orden INTEGER NOT NULL,
-    tiempo_parada INTEGER DEFAULT 60, -- en segundos
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Contar features en una capa
+CREATE OR REPLACE FUNCTION contar_features(capa_id INTEGER)
+RETURNS INTEGER AS $$
+BEGIN
+    RETURN (
+        SELECT 
+            CASE 
+                WHEN geometria_json->>'type' = 'FeatureCollection' THEN jsonb_array_length(geometria_json->'features')
+                ELSE 1
+            END
+        FROM capas_georeferenciadas
+        WHERE id = capa_id
+    );
+END;
+$$ LANGUAGE plpgsql;
 
--- Crear índices para relaciones
-CREATE INDEX IF NOT EXISTS idx_paradas_estacion ON paradas(estacion_id);
-CREATE INDEX IF NOT EXISTS idx_paradas_ruta ON paradas(ruta_id);
+-- ========================================
+-- VISTAS PARA ESTADÍSTICAS
+-- ========================================
 
--- ============================================
--- Insertar datos de ejemplo (Bogotá - Línea B)
--- ============================================
-
--- Insertar estaciones
-INSERT INTO estaciones (nombre, descripcion, geom) VALUES
-('Kennedy', 'Estación Kennedy - Sur de Bogotá', ST_SetSRID(ST_MakePoint(-74.1449, 4.6297), 4326)),
-('Banderas', 'Estación Banderas', ST_SetSRID(ST_MakePoint(-74.1439, 4.6417), 4326)),
-('Marsella', 'Estación Marsella', ST_SetSRID(ST_MakePoint(-74.1431, 4.6531), 4326)),
-('Gamarra', 'Estación Gamarra', ST_SetSRID(ST_MakePoint(-74.1419, 4.6641), 4326)),
-('Biblioteca', 'Estación Biblioteca', ST_SetSRID(ST_MakePoint(-74.1409, 4.6751), 4326)),
-('Usaquén', 'Estación Usaquén - Norte de Bogotá', ST_SetSRID(ST_MakePoint(-74.0280, 4.7210), 4326)) ON CONFLICT DO NOTHING;
-
--- Insertar ruta principal (ejemplo simplificado)
-INSERT INTO rutas (nombre, descripcion, ruta_geom, distancia_km) VALUES
-('Línea B - Kennedy a Usaquén', 
- 'Ruta principal de transporte masivo',
- ST_SetSRID(
-   ST_LineFromText('LINESTRING(-74.1449 4.6297, -74.1439 4.6417, -74.1431 4.6531, -74.1419 4.6641, -74.1409 4.6751, -74.0280 4.7210)'),
-   4326
- ),
- 15.5
-) ON CONFLICT DO NOTHING;
-
--- ============================================
--- Consultas útiles
--- ============================================
-
--- Ver todas las estaciones
-SELECT id, nombre, ST_AsText(geom) as coordenadas FROM estaciones;
-
--- Ver distancia entre estaciones (en metros)
+-- Estadísticas de capas subidas
+CREATE OR REPLACE VIEW estadisticas_capas AS
 SELECT 
-  e1.nombre as estacion_origen,
-  e2.nombre as estacion_destino,
-  ROUND(ST_Distance(e1.geom, e2.geom)::numeric, 2) as distancia_metros
-FROM estaciones e1
-JOIN estaciones e2 ON e1.id < e2.id
-ORDER BY distancia_metros DESC
-LIMIT 10;
+    COUNT(*) as total_capas,
+    COUNT(DISTINCT tipo_archivo) as tipos_archivo,
+    MAX(created_at) as ultima_capa_agregada,
+    SUM(ST_Area(bbox::geography)) / 1000000 as area_total_km2
+FROM capas_georeferenciadas;
 
--- Ver estaciones dentro de 500m de un punto (ej: -74.0280, 4.7210)
+-- Estadísticas de entidades principales
+CREATE OR REPLACE VIEW estadisticas_entidades AS
 SELECT 
-  nombre,
-  ROUND(ST_Distance(geom, ST_SetSRID(ST_MakePoint(-74.0280, 4.7210), 4326))::numeric, 2) as distancia_metros
-FROM estaciones
-WHERE ST_Distance(geom, ST_SetSRID(ST_MakePoint(-74.0280, 4.7210), 4326)) < 500
-ORDER BY distancia_metros;
+    (SELECT COUNT(*) FROM departamentos) as total_departamentos,
+    (SELECT COUNT(*) FROM municipios) as total_municipios,
+    (SELECT COUNT(*) FROM vias) as total_vias,
+    (SELECT COUNT(*) FROM sitios_turisticos) as total_sitios_turisticos;
 
--- Ver área de cobertura (envolvente convexa)
-SELECT ST_AsText(ST_ConvexHull(ST_Collect(geom))) as area_cobertura FROM estaciones;
+-- ========================================
+-- CONSULTAS ÚTILES (COMENTADAS)
+-- ========================================
 
--- Ver información de rutas
-SELECT id, nombre, distancia_km, ST_AsText(ruta_geom) FROM rutas;
+-- Ver todas las capas
+-- SELECT id, nombre, tipo_archivo, created_at FROM capas_georeferenciadas ORDER BY created_at DESC;
+
+-- Ver departamentos con geometría
+-- SELECT denombre, ST_AsGeoJSON(geom) FROM departamentos;
+
+-- Ver municipios cercanos a un punto
+-- SELECT mpnombre, depto, ST_Distance(geom, ST_SetSRID(ST_MakePoint(-75.0, 5.0), 4326)) as distancia 
+-- FROM municipios 
+-- WHERE ST_Distance(geom, ST_SetSRID(ST_MakePoint(-75.0, 5.0), 4326)) < 10000 
+-- ORDER BY distancia;
+
+-- Ver sitios turísticos por ciudad
+-- SELECT nombre, categoria, ciudad FROM sitios_turisticos WHERE ciudad ILIKE '%Bogotá%';
+
+-- Longitud total de todas las vías
+-- SELECT SUM(ST_Length(geom::geography)) / 1000 as total_km FROM vias;

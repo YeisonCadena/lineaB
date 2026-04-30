@@ -1,163 +1,64 @@
-# 🚀 Configuración API PostgreSQL + PostGIS - Línea B
+# 🗺️ REST API - Proyecto Georeferenciado
 
-Tu API está lista para conectarse a PostgreSQL con PostGIS. Aquí está lo que se configuró:
+API Node.js + Express + PostgreSQL + PostGIS para consultar datos geoespaciales.
 
-## 📁 Estructura de archivos creados
+## ⚡ Inicio Rápido
 
-```
-back/
-├── server.js           # Servidor Express principal
-├── db.js              # Configuración y pool de conexión a PostgreSQL
-├── routes.js          # Rutas CRUD para estaciones y operaciones geográficas
-├── .env               # Variables de entorno (⚠️ Editar con tus credenciales)
-├── init.sql           # Script SQL para crear tablas e insertar datos
-├── package.json       # Actualizado con dependencias necesarias
-└── POSTGIS_SETUP.md   # Guía completa de configuración
-```
-
-## ⚙️ Pasos siguientes
-
-### 1️⃣ Configurar PostgreSQL
 ```bash
-# Abre pgAdmin o psql y ejecuta:
-CREATE DATABASE linea_b;
+# 1. Instalar dependencias
+npm install
 
-# Luego conecta a esa BD y ejecuta:
-CREATE EXTENSION postgis;
-CREATE EXTENSION postgis_topology;
+# 2. Ejecutar script SQL (en pgAdmin o terminal)
+psql -U postgres -d proyecto -f init.sql
 
-# Verifica la instalación:
-SELECT PostGIS_version();
-```
-
-### 2️⃣ Editar archivo `.env`
-Abre `back/.env` y actualiza con tus credenciales:
-```
-DB_HOST=localhost          # Tu servidor PostgreSQL
-DB_PORT=5432              # Puerto (por defecto 5432)
-DB_NAME=linea_b           # Nombre de tu BD
-DB_USER=postgres          # Tu usuario
-DB_PASSWORD=tu_contraseña # Tu contraseña
-DB_SSL=false              # true si usas conexión remota
-```
-
-### 3️⃣ Inicializar base de datos
-```bash
-# Opción A: Usando pgAdmin
-# - Abre pgAdmin
-# - Haz clic derecho en tu BD "linea_b"
-# - Tools > Query Tool
-# - Copia todo el contenido de: back/init.sql
-# - Ejecuta (F5)
-
-# Opción B: Usando terminal
-psql -U postgres -d linea_b -f back/init.sql
-```
-
-### 4️⃣ Iniciar el servidor
-```bash
-cd back
-
-# Modo desarrollo (auto-reinicio con cambios)
+# 3. Iniciar servidor
 npm run dev
-
-# Modo producción
-npm start
 ```
 
-## 🔌 Endpoints disponibles
+Servidor en: **http://localhost:3000**
 
-### Salud de la API
+## 📊 Datos Disponibles
+
+| Tabla | Registros | Endpoints |
+|-------|-----------|-----------|
+| departamentos | 4 | GET /api/departamentos |
+| municipios | 236 | GET /api/municipios |
+| vias | 14 | GET /api/vias |
+| sitios_turisticos | 165 | GET /api/sitios-turisticos |
+| capas (upload) | - | POST /api/capas |
+
+## 📡 Ejemplos
+
 ```bash
-GET http://localhost:3000/health
+# Listar departamentos
+curl http://localhost:3000/api/departamentos
+
+# Municipios cercanos (10km)
+curl "http://localhost:3000/api/municipios/cercanos?lat=5.5&lon=-74.0&radio=10000"
+
+# Como GeoJSON
+curl http://localhost:3000/api/municipios/1/geojson
+
+# Subir capa GeoJSON
+curl -X POST http://localhost:3000/api/capas \
+  -F "archivo=@datos.geojson" -F "nombre=Mi Capa"
 ```
 
-### Gestión de Estaciones
-```bash
-# Obtener todas las estaciones
-GET http://localhost:3000/api/estaciones
+## 📖 Documentación Completa
 
-# Crear nueva estación
-POST http://localhost:3000/api/estaciones
-Content-Type: application/json
-{
-  "nombre": "Nueva Estación",
-  "lat": 4.7210,
-  "lon": -74.0280
-}
+Ver **[ENDPOINTS.md](ENDPOINTS.md)** - 22 endpoints documentados con ejemplos.
 
-# Obtener estaciones cercanas (radio en metros)
-GET http://localhost:3000/api/estaciones/cercanas?lat=4.7210&lon=-74.0280&radio=2000
+## 🛠️ Archivos
 
-# Actualizar estación
-PUT http://localhost:3000/api/estaciones/:id
-{
-  "nombre": "Nombre Actualizado",
-  "lat": 4.7210,
-  "lon": -74.0280
-}
-
-# Eliminar estación
-DELETE http://localhost:3000/api/estaciones/:id
-
-# Ver área de cobertura
-GET http://localhost:3000/api/estaciones/cobertura
-```
-
-## 📊 Verificación de PostGIS
-```bash
-# En tu navegador o Postman
-GET http://localhost:3000/postgis-version
-GET http://localhost:3000/geo-example
-```
-
-## 💾 Funcionalidades geográficas implementadas
-
-✅ **Crear estaciones** con coordenadas (lat/lon)  
-✅ **Calcular distancias** entre puntos  
-✅ **Buscar estaciones cercanas** dentro de un radio  
-✅ **Exportar en GeoJSON** para visualización en mapas  
-✅ **Crear rutas** como líneas geográficas  
-✅ **Calcular área de cobertura** con convex hull  
-
-## 🗺️ Integración con mapas (próximo paso)
-
-Para visualizar los datos en un mapa interactivo, puedes usar:
-- **Leaflet** + GeoJSON
-- **Mapbox GL JS**
-- **Google Maps API**
-- **OpenStreetMap**
-
-## 📝 Notas importantes
-
-- El SRID utilizado es **4326** (WGS84 - estándar GPS)
-- Todos los puntos se almacenan en formato `GEOMETRY(Point, 4326)`
-- Las distancias se calculan en **metros**
-- Los índices GIST optimizan las consultas espaciales
-
-## ❓ Problemas frecuentes
-
-Si PostGIS no se detecta:
-```sql
--- Verifica en pgAdmin:
-SELECT * FROM pg_available_extensions WHERE name LIKE 'postgis%';
-
--- Si está disponible pero no instalada:
-CREATE EXTENSION postgis;
-```
-
-Si hay errores de conexión:
-- Verifica que PostgreSQL está corriendo
-- Comprueba credenciales en `.env`
-- Revisa el firewall/puerto 5432
-
-## 📚 Referencias útiles
-
-- [Documentación PostGIS](https://postgis.net/documentation/)
-- [Funciones geográficas](https://postgis.net/docs/PostGIS_Manual.html)
-- [GeoJSON spec](https://geojson.org/)
-- [Express.js docs](https://expressjs.com/)
+- `server.js` - Servidor Express
+- `routes.js` - 22 endpoints REST  
+- `db.js` - Conexión PostgreSQL
+- `geoutils.js` - Funciones geoespaciales
+- `init.sql` - Setup de base de datos
+- `.env` - Configuración
 
 ---
 
-**¡Tu API está lista! 🚀** Ejecuta `npm run dev` en la carpeta `back` y comienza a trabajar con datos geográficos.
+**SRID:** 4326 (WGS84)  
+**Base de datos:** proyecto  
+**Puerto:** 3000
